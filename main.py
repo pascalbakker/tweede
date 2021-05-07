@@ -4,6 +4,8 @@ from PIL import ImageTk, Image
 from itertools import cycle
 import random
 import glob
+from datetime import datetime
+
 
 # GLOBALS
 # preset = dict{
@@ -20,10 +22,9 @@ class DesktopReference:
     def runApp(self): pass
     def runCommand(self): pass
 
-
 class ImageIter:
-    def __init__(self, path):
-        self._c = glob.glob(path)
+    def __init__(self, path,recursive=False):
+        self._c = glob.glob(path,recursive=recursive)
         random.shuffle(self._c)
         self._index = -1
         self._history = []
@@ -53,7 +54,7 @@ class ImageIter:
     def calculate_resize(self, img_h, img_w, win_h, win_w, readjust=0.9):
         maxval = max(img_h, img_w, win_h, win_w)
         if img_h == maxval:
-            ratio = win_h / img_h
+            ratio = (win_h / img_h)
         elif img_w == maxval:
             ratio = win_w / img_w
         elif win_h == maxval and img_w > win_w:
@@ -68,18 +69,21 @@ class ImageIter:
     def image(self, height, width):
         image = Image.open(self.current())
         old_h, old_w = image.size
-        newsize = self.calculate_resize(old_h, old_w, height, width)
+        newsize = self.calculate_resize(old_h, old_w, height-200, width)
         return ImageTk.PhotoImage(image.resize(newsize, Image.ANTIALIAS))
 
 
 # Timer countdown
-class Countdown:
+class CountdownClock:
     def __init__(self, time):
         self._maxtime = time
         self._curtime = self._maxtime
         self._update_freq = 1000
 
-    def realtime(self): return self._curtime / 1000
+    def realtime(self):
+        mins, secs = divmod(self._curtime/1000, 60)
+        if(mins==0): return '{:01d}:{:02d}'.format(int(mins), int(secs))
+        return '{:02d}:{:02d}'.format(int(mins), int(secs))
     def time(self): return self._curtime
 
     def reset(self):
@@ -107,11 +111,15 @@ class SampleApp(tk.Tk):
         container = tk.Frame(self)
         self.title("Reference Desktop")
         self.geometry("600x600")
-        container.pack(side="top", fill="both", expand=True)
-        container.grid_rowconfigure(0, weight=1)
-        container.grid_columnconfigure(0, weight=1)
+        container.pack(side="bottom", fill="both", expand=True, padx=0,pady=0)
+        #container.grid_rowconfigure(0, weight=0)
+        #container.grid_columnconfigure(0, weight=0)
 
         self.frames = {}
+        page_name = StartPage.__name__
+        frame = StartPage(parent=container, controller=self)
+        frame.pack(side="top",fill="both",expand="true")
+        """
         for F in (StartPage, PageOne, PageTwo):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
@@ -120,9 +128,11 @@ class SampleApp(tk.Tk):
             # put all of the pages in the same location;
             # the one on the top of the stacking order
             # will be the one that is visible.
-            frame.grid(row=0, column=0, sticky="nsew")
+            frame.pack()
+            #frame.grid(row=0, column=0, sticky="nsew")
 
         self.show_frame("StartPage")
+        """
 
     def paths_initalization(self): pass  # create config folder
 
@@ -142,27 +152,35 @@ class StartPage(tk.Frame):
         # Variables
         self.images = ['testData/boris.jpg',
                        'testData/women.jpg', 'testData/anime.jpg']
-        controller.update()
-        height = controller.winfo_height()
-        width = controller.winfo_width()
-
+        def getSize():
+            controller.update()
+            height = controller.winfo_height()
+            width = controller.winfo_width()
+            return height,width
+        height, width = getSize()
+        self.configure(bg='black')
         self.currentPos = 0
         self.controller = controller
-        counter = Countdown(5000)
+        counter = CountdownClock(5000)
         photo = ImageIter('testData/*.jpg')
 
         # Widgets
         self.img = photo.image(height, width)
-        panel = tk.Label(self, image=self.img)
-        back = tk.Button(self, text="<", command=lambda: goBack(None))
-        forward = tk.Button(self, text=">", command=lambda: goForward(None))
-        timer = tk.Label(self, text=counter.realtime())
+
+        holderFrame = tk.Frame(controller,bg='black',pady=0,padx=0)
+        gridFrame = tk.Frame(holderFrame,bg='black',pady=0,padx=0)
+        panel = tk.Label(holderFrame, image=self.img, bg='black',fg='black')
+        back = tk.Button(gridFrame, text="<", command=lambda: goBack(None),bg='black',fg='white')
+        forward = tk.Button(gridFrame, text=">", command=lambda: goForward(None), bg='black', fg='white')
+        timer = tk.Label(gridFrame, text=counter.realtime(), font=('Arial',24),fg='white',bg='black', padx=30)
 
         # Packing
-        panel.pack(side="top")
-        back.pack(side="left")
-        forward.pack(side="right")
-        timer.pack()
+        holderFrame.pack(side="top",pady=0)
+        gridFrame.pack(side='top',anchor='n')
+        panel.pack(side='bottom')
+        back.grid(row=0,column=0)
+        forward.grid(row=0,column=2)
+        timer.grid(row=0,column=1)
 
         def update_countdown_label(): timer['text'] = counter.realtime()
 
@@ -178,12 +196,14 @@ class StartPage(tk.Frame):
 
         # Functions
         def next_image(event=None):
+            height, width = getSize()
             photo.next()
             new_image = photo.image(height, width)
             panel.configure(image=new_image)
             panel.image = new_image
 
         def previous_image(event=None):
+            height, width = getSize()
             photo.prev()
             new_image = photo.image(height, width)
             panel.configure(image=new_image)
@@ -245,4 +265,5 @@ class PageTwo(tk.Frame):
 
 if __name__ == "__main__":
     app = SampleApp()
+    app['bg'] = 'black'
     app.mainloop()
