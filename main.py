@@ -12,6 +12,15 @@ from datetime import datetime
 #    "scalar": [5,30,60,120,240] # in seconds
 #    "class": [[(30,5),(60,3),(1,120)]] # (time in seconds, number of images)
 # }
+bg_color = "black"
+fg_color = "white"
+global_font = 'Arial'
+timer_font_size = 20
+show_timer = True
+show_arrows = True
+disable_go_back = False
+disable_skip = False
+readjust_amount=0.7 # How much to shrink large photos
 
 # Main clas for project. Run as gui or command line
 
@@ -22,17 +31,21 @@ class DesktopReference:
     def runApp(self): pass
     def runCommand(self): pass
 
+
 class ImageIter:
-    def __init__(self, path,recursive=False):
-        self._c = glob.glob(path,recursive=recursive)
+    def __init__(self, path, recursive=False):
+        self._c = glob.glob(path, recursive=recursive)
         random.shuffle(self._c)
         self._index = -1
         self._history = []
 
+    # Maybe image
     def next(self):
         self._index += 1
         if self._index >= len(self._c):
-            self._index = 0
+            self._index = len(self._c) - 1
+            return None
+            #self._index = 0
         item = self._c[self._index]
         if item not in self._history:
             self._history.append(item)
@@ -41,7 +54,8 @@ class ImageIter:
     def prev(self):
         self._index -= 1
         if self._index < 0:
-            self._index = len(self._c)-1
+            self._index = 0
+            #self._index = len(self._c)-1
         return self._c[self._index]
 
     def current(self): return self._c[self._index]
@@ -51,8 +65,9 @@ class ImageIter:
     # Resizes image to fit inside window. If image is smaller, then it will not resize
     # olds are the image, news are the window
 
-    def calculate_resize(self, img_h, img_w, win_h, win_w, readjust=0.9):
+    def calculate_resize(self, img_h, img_w, win_h, win_w):
         maxval = max(img_h, img_w, win_h, win_w)
+        print("vals", img_h, img_w, win_h, win_w)
         if img_h == maxval:
             ratio = (win_h / img_h)
         elif img_w == maxval:
@@ -63,8 +78,14 @@ class ImageIter:
             ratio = img_w / win_w
         else:
             ratio = 1
-        new_pad = 0
-        return (int(img_h*ratio-new_pad), int(img_w*ratio-new_pad))
+        print("ratio",ratio)
+        new_h = img_h*ratio
+        new_w = img_w*ratio
+        print("new",new_h/win_h)
+        if new_h/win_h > 0.9 or new_w/win_w > 0.9:
+            new_h *= readjust_amount
+            new_w *= readjust_amount
+        return (int(new_h), int(new_w))
 
     def image(self, height, width):
         image = Image.open(self.current())
@@ -79,11 +100,14 @@ class CountdownClock:
         self._maxtime = time
         self._curtime = self._maxtime
         self._update_freq = 1000
+        self._total_time = 0
 
     def realtime(self):
         mins, secs = divmod(self._curtime/1000, 60)
-        if(mins==0): return '{:01d}:{:02d}'.format(int(mins), int(secs))
+        if(mins == 0):
+            return '{:01d}:{:02d}'.format(int(mins), int(secs))
         return '{:02d}:{:02d}'.format(int(mins), int(secs))
+
     def time(self): return self._curtime
 
     def reset(self):
@@ -91,6 +115,7 @@ class CountdownClock:
         return self._curtime
 
     def dec(self):
+        self._total_time += self._update_freq
         self._curtime -= self._update_freq
 
 # Gui main class
@@ -111,14 +136,14 @@ class SampleApp(tk.Tk):
         container = tk.Frame(self)
         self.title("Reference Desktop")
         self.geometry("600x600")
-        container.pack(side="bottom", fill="both", expand=True, padx=0,pady=0)
+        container.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
         #container.grid_rowconfigure(0, weight=0)
         #container.grid_columnconfigure(0, weight=0)
 
         self.frames = {}
         page_name = StartPage.__name__
         frame = StartPage(parent=container, controller=self)
-        frame.pack(side="top",fill="both",expand="true")
+        frame.pack(side="top", fill="both", expand="true")
         """
         for F in (StartPage, PageOne, PageTwo):
             page_name = F.__name__
@@ -152,39 +177,68 @@ class StartPage(tk.Frame):
         # Variables
         self.images = ['testData/boris.jpg',
                        'testData/women.jpg', 'testData/anime.jpg']
+
         def getSize():
             controller.update()
             height = controller.winfo_height()
             width = controller.winfo_width()
-            return height,width
-        height, width = getSize()
-        self.configure(bg='black')
+            return height, width
+
+        self.configure(bg=bg_color)
         self.currentPos = 0
         self.controller = controller
         counter = CountdownClock(5000)
         photo = ImageIter('testData/*.jpg')
+        self.end_session_bool = False
 
         # Widgets
+        height, width = getSize()
+        photo.next()
         self.img = photo.image(height, width)
 
-        holderFrame = tk.Frame(controller,bg='black',pady=0,padx=0)
-        gridFrame = tk.Frame(holderFrame,bg='black',pady=0,padx=0)
-        panel = tk.Label(holderFrame, image=self.img, bg='black',fg='black')
-        back = tk.Button(gridFrame, text="<", command=lambda: goBack(None),bg='black',fg='white')
-        forward = tk.Button(gridFrame, text=">", command=lambda: goForward(None), bg='black', fg='white')
-        timer = tk.Label(gridFrame, text=counter.realtime(), font=('Arial',24),fg='white',bg='black', padx=30)
+        holderFrame = tk.Frame(controller, bg=bg_color, pady=0, padx=0)
+        gridFrame = tk.Frame(holderFrame, bg=bg_color, pady=0, padx=0)
+        panel = tk.Label(holderFrame, text="", image=self.img,
+                         bg=bg_color, fg=fg_color)
+        timer = tk.Label(gridFrame, text=counter.realtime(), font=(
+            global_font, timer_font_size), fg=fg_color, bg=bg_color, padx=30)
+        end = tk.Button(gridFrame, text="End", command=lambda: end_session(), font=(
+            global_font), fg=fg_color, bg=bg_color, padx=10, pady=10)
 
         # Packing
-        holderFrame.pack(side="top",pady=0)
-        gridFrame.pack(side='top',anchor='n')
+        holderFrame.pack(side="top", pady=0)
+        gridFrame.pack(side='top', anchor='n')
         panel.pack(side='bottom')
-        back.grid(row=0,column=0)
-        forward.grid(row=0,column=2)
-        timer.grid(row=0,column=1)
+        timer.grid(row=0, column=1)
+        end.grid(row=0, column=3)
+        if(show_arrows):
+            back = tk.Button(gridFrame, text="<", command=lambda: goBack(
+                None), bg=bg_color, fg=fg_color)
+            forward = tk.Button(gridFrame, text=">", command=lambda: goForward(
+                None), bg=bg_color, fg=fg_color)
+            back.grid(row=0, column=0)
+            forward.grid(row=0, column=2)
+
+        def showGallery(): pass
+
+        def end_session():
+            self.end_session_bool = True
+            photo._index = len(photo._c)
+            mins, secs = divmod(counter._total_time/1000, 60)
+            num_items = len(photo._history)
+            results = 'Thank you! \n You have completed {0} images in {1}m{2}s'.format(
+                num_items, mins, secs)
+            panel.configure(image='', text=results,
+                            font=(global_font, 20))
+            panel.update_idletasks()
+            timer['text'] = "Done"
+            # holderFrame.pack_forget()
 
         def update_countdown_label(): timer['text'] = counter.realtime()
 
         def countdown_timer():
+            if self.end_session_bool:
+                return
             if counter.time() > 0:
                 update_countdown_label()
                 counter.dec()
@@ -197,10 +251,13 @@ class StartPage(tk.Frame):
         # Functions
         def next_image(event=None):
             height, width = getSize()
-            photo.next()
-            new_image = photo.image(height, width)
-            panel.configure(image=new_image)
-            panel.image = new_image
+            if photo.next() != None:
+                new_image = photo.image(height, width)
+                panel.configure(image=new_image)
+                panel.image = new_image
+            else:
+                self.end_session_bool = True
+                end_session()
 
         def previous_image(event=None):
             height, width = getSize()
@@ -265,5 +322,5 @@ class PageTwo(tk.Frame):
 
 if __name__ == "__main__":
     app = SampleApp()
-    app['bg'] = 'black'
+    app['bg'] = bg_color
     app.mainloop()
