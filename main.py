@@ -1,24 +1,105 @@
-import tkinter as tk                # python 3
-from tkinter import font as tkfont  # python 3
+import tkinter as tk
+from tkinter import font as tkfont
 from PIL import ImageTk, Image
+from itertools import cycle
+import random
+import glob
+
+# GLOBALS
+# preset = dict{
+#    "scalar": [5,30,60,120,240] # in seconds
+#    "class": [[(30,5),(60,3),(1,120)]] # (time in seconds, number of images)
+# }
+
+# Main clas for project. Run as gui or command line
 
 
-"""
-class Photos:
-    def __init__(self,paths=[]):
-        for path in paths:
-"""
+class DesktopReference:
+    def __init__(self, args): pass
 
+    def runApp(self): pass
+    def runCommand(self): pass
+
+
+class ImageIter:
+    def __init__(self, path):
+        self._c = glob.glob(path)
+        random.shuffle(self._c)
+        self._index = -1
+        self._history = []
+
+    def next(self):
+        self._index += 1
+        if self._index >= len(self._c):
+            self._index = 0
+        item = self._c[self._index]
+        if item not in self._history:
+            self._history.append(item)
+        return item
+
+    def prev(self):
+        self._index -= 1
+        if self._index < 0:
+            self._index = len(self._c)-1
+        return self._c[self._index]
+
+    def current(self): return self._c[self._index]
+    def reshuffle(self): random.shuffle(self._c)
+    def history(self): self._history
+
+    # Resizes image to fit inside window. If image is smaller, then it will not resize
+    # olds are the image, news are the window
+
+    def calculate_resize(self, img_h, img_w, win_h, win_w, readjust=0.9):
+        maxval = max(img_h, img_w, win_h, win_w)
+        if img_h == maxval:
+            ratio = win_h / img_h
+        elif img_w == maxval:
+            ratio = win_w / img_w
+        elif win_h == maxval and img_w > win_w:
+            ratio = img_h / win_h
+        elif win_w == maxval and img_h > win_h:
+            ratio = img_w / win_w
+        else:
+            ratio = 1
+        new_pad = 0
+        return (int(img_h*ratio-new_pad), int(img_w*ratio-new_pad))
+
+    def image(self, height, width):
+        image = Image.open(self.current())
+        old_h, old_w = image.size
+        newsize = self.calculate_resize(old_h, old_w, height, width)
+        return ImageTk.PhotoImage(image.resize(newsize, Image.ANTIALIAS))
+
+
+# Timer countdown
+class Countdown:
+    def __init__(self, time):
+        self._maxtime = time
+        self._curtime = self._maxtime
+        self._update_freq = 1000
+
+    def realtime(self): return self._curtime / 1000
+    def time(self): return self._curtime
+
+    def reset(self):
+        self._curtime = self._maxtime
+        return self._curtime
+
+    def dec(self):
+        self._curtime -= self._update_freq
+
+# Gui main class
 
 
 class SampleApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         # VARIABLEs
-        self.iteration_time = 5000 # ms
 
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
+        self.title_font = tkfont.Font(
+            family='Helvetica', size=18, weight="bold", slant="italic")
 
         # the container is where we'll stack a bunch of frames
         # on top of each other, then the one we want visible
@@ -43,30 +124,39 @@ class SampleApp(tk.Tk):
 
         self.show_frame("StartPage")
 
+    def paths_initalization(self): pass  # create config folder
+
     def show_frame(self, page_name):
         '''Show a frame for the given page name'''
         frame = self.frames[page_name]
         frame.tkraise()
 
-    def loadStack(): return None
+    def loadStack(self): pass
 
-    def getTime(): return None
+    def getTime(self): pass
 
 
 class StartPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        self.images = ['testData/boris.jpg','testData/women.jpg','testData/anime.jpg']
+        # Variables
+        self.images = ['testData/boris.jpg',
+                       'testData/women.jpg', 'testData/anime.jpg']
+        controller.update()
+        height = controller.winfo_height()
+        width = controller.winfo_width()
+
         self.currentPos = 0
         self.controller = controller
-        self.currentCount = int(controller.iteration_time/1000)
+        counter = Countdown(5000)
+        photo = ImageIter('testData/*.jpg')
 
         # Widgets
-        self.img = self.loadImage()
+        self.img = photo.image(height, width)
         panel = tk.Label(self, image=self.img)
-        back = tk.Button(self, text="<",command=lambda: previousImage())
-        forward = tk.Button(self, text=">",command=lambda: nextImage(dontRun = False))
-        timer = tk.Label(self, text=str(controller.iteration_time))
+        back = tk.Button(self, text="<", command=lambda: goBack(None))
+        forward = tk.Button(self, text=">", command=lambda: goForward(None))
+        timer = tk.Label(self, text=counter.realtime())
 
         # Packing
         panel.pack(side="top")
@@ -74,44 +164,45 @@ class StartPage(tk.Frame):
         forward.pack(side="right")
         timer.pack()
 
-        def countdown():
-            timer['text'] = self.currentCount
-            if self.currentCount > 0 :
-                self.currentCount -= 1
-                controller.after(1000, countdown)
+        def update_countdown_label(): timer['text'] = counter.realtime()
+
+        def countdown_timer():
+            if counter.time() > 0:
+                update_countdown_label()
+                counter.dec()
+                controller.after(counter._update_freq, countdown_timer)
             else:
-                self.currentCount = int(controller.iteration_time/1000)
-                nextImage()
-                controller.after(0, countdown)
+                counter.reset()
+                goForward(None)
+                controller.after(0, countdown_timer)
 
-        def nextImage(e=None,dontRun=None):
-            img2 = self.loadImage()
-            panel.configure(image=img2)
-            panel.image = img2
-            if(e==None and dontRun==None):
-                controller.after(controller.iteration_time,nextImage)
+        # Functions
+        def next_image(event=None):
+            photo.next()
+            new_image = photo.image(height, width)
+            panel.configure(image=new_image)
+            panel.image = new_image
 
-        def previousImage(e=None):
-            img2 = self.loadImage(-1)
-            panel.configure(image=img2)
-            panel.image = img2
+        def previous_image(event=None):
+            photo.prev()
+            new_image = photo.image(height, width)
+            panel.configure(image=new_image)
+            panel.image = new_image
 
-        countdown()
-        #controller.after(controller.iteration_time,nextImage)
-        def moveandreset(event):
-            nextImage(dontRun=True)
-            self.currentCount = int(controller.iteration_time/1000)
-            timer['text'] = self.currentCount
-        def moveandreset2(event):
-            previousImage()
-            self.currentCount = int(controller.iteration_time/1000)
-            timer['text'] = self.currentCount
+        # Callbacks
+        def goForward(event):
+            next_image()
+            counter.reset()
 
-        controller.bind("<Return>",moveandreset)
-        controller.bind("<Right>",moveandreset)
-        controller.bind("<Left>",moveandreset2)
+        def goBack(event):
+            previous_image()
+            counter.reset()
 
-
+        # Bindings and calls
+        controller.bind("<Right>", goForward)
+        controller.bind("<Left>", goBack)
+        countdown_timer()
+        # controller.after(counter._maxtime,countdown)
 
         """
         label = tk.Label(self, text="This is the start page", font=controller.title_font)
@@ -124,20 +215,15 @@ class StartPage(tk.Frame):
         button1.pack()
         button2.pack()
         """
-    def loadImage(self, inc=1):
-        index = self.currentPos + inc
-        pos = index%len(self.images)
-        print(pos)
-        path = self.images[pos]
-        self.currentPos = pos
-        return ImageTk.PhotoImage(Image.open(path).resize((600,600)))
+
 
 class PageOne(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        label = tk.Label(self, text="This is page 1", font=controller.title_font)
+        label = tk.Label(self, text="This is page 1",
+                         font=controller.title_font)
         label.pack(side="top", fill="x", pady=10)
         button = tk.Button(self, text="Go to the start page",
                            command=lambda: controller.show_frame("StartPage"))
@@ -149,7 +235,8 @@ class PageTwo(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        label = tk.Label(self, text="This is page 2", font=controller.title_font)
+        label = tk.Label(self, text="This is page 2",
+                         font=controller.title_font)
         label.pack(side="top", fill="x", pady=10)
         button = tk.Button(self, text="Go to the start page",
                            command=lambda: controller.show_frame("StartPage"))
