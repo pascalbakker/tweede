@@ -5,6 +5,23 @@ from itertools import cycle
 import random
 import glob
 from datetime import datetime
+import argparse
+
+
+def init_argparse():
+    parser = argparse.ArgumentParser(description="Iterator through images")
+    parser.add_argument('-p','--paths', type=str, default='.', help="path of images")
+    # Aesethetic Arguements
+    parser.add_argument('--bg_color', type=str, default='black', help="background color of app")
+    parser.add_argument('--fg_color', type=str, default='white', help="foreground color of app")
+    parser.add_argument('--global_font', type=str, default='Arial', help="font family of labels")
+    parser.add_argument('--timer_font_size', type=int, default=20, help="size of timer")
+    parser.add_argument('--show_timer', type=bool, default=True, help="show timer")
+    parser.add_argument('--show_arrows', type=bool, default=True, help="show forward and back arrows")
+    parser.add_argument('--allow_back', type=bool, default=True, help="disable the ability to view previous images")
+    parser.add_argument('--disable_skip', type=bool, default=True, help="disable the ability to skip current image")
+    parser.add_argument('--readjust_amount', type=float, default=0.7, help="percent of window size images should be")
+    return parser
 
 
 # GLOBALS
@@ -12,16 +29,17 @@ from datetime import datetime
 #    "scalar": [5,30,60,120,240] # in seconds
 #    "class": [[(30,5),(60,3),(1,120)]] # (time in seconds, number of images)
 # }
+"""
 bg_color = "black"
 fg_color = "white"
 global_font = 'Arial'
 timer_font_size = 20
 show_timer = True
 show_arrows = True
-disable_go_back = False
+disable_skip = False
 disable_skip = False
 readjust_amount=0.7 # How much to shrink large photos
-
+"""
 # Main clas for project. Run as gui or command line
 
 
@@ -34,7 +52,8 @@ class DesktopReference:
 
 class ImageIter:
     def __init__(self, path, recursive=False):
-        self._c = glob.glob(path, recursive=recursive)
+        images = path+"/*.jpg"
+        self._c = glob.glob(images, recursive=recursive)
         random.shuffle(self._c)
         self._index = -1
         self._history = []
@@ -65,9 +84,8 @@ class ImageIter:
     # Resizes image to fit inside window. If image is smaller, then it will not resize
     # olds are the image, news are the window
 
-    def calculate_resize(self, img_h, img_w, win_h, win_w):
+    def calculate_resize(self, img_h, img_w, win_h, win_w,readjust_amount):
         maxval = max(img_h, img_w, win_h, win_w)
-        print("vals", img_h, img_w, win_h, win_w)
         if img_h == maxval:
             ratio = (win_h / img_h)
         elif img_w == maxval:
@@ -78,19 +96,18 @@ class ImageIter:
             ratio = img_w / win_w
         else:
             ratio = 1
-        print("ratio",ratio)
         new_h = img_h*ratio
         new_w = img_w*ratio
-        print("new",new_h/win_h)
+        # if image is still too large
         if new_h/win_h > 0.9 or new_w/win_w > 0.9:
             new_h *= readjust_amount
             new_w *= readjust_amount
         return (int(new_h), int(new_w))
 
-    def image(self, height, width):
+    def image(self, height, width,readjust_amount):
         image = Image.open(self.current())
         old_h, old_w = image.size
-        newsize = self.calculate_resize(old_h, old_w, height-200, width)
+        newsize = self.calculate_resize(old_h, old_w, height-200, width,readjust_amount)
         return ImageTk.PhotoImage(image.resize(newsize, Image.ANTIALIAS))
 
 
@@ -122,9 +139,7 @@ class CountdownClock:
 
 
 class SampleApp(tk.Tk):
-    def __init__(self, *args, **kwargs):
-        # VARIABLEs
-
+    def __init__(self,userargs, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
         self.title_font = tkfont.Font(
@@ -135,14 +150,13 @@ class SampleApp(tk.Tk):
         # will be raised above the others
         container = tk.Frame(self)
         self.title("Reference Desktop")
-        self.geometry("600x600")
+        self.geometry("1000x1000")
         container.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
-        #container.grid_rowconfigure(0, weight=0)
-        #container.grid_columnconfigure(0, weight=0)
 
-        self.frames = {}
+
+        start_button = tk.Button()
         page_name = StartPage.__name__
-        frame = StartPage(parent=container, controller=self)
+        frame = StartPage(userargs=userargs,parent=container, controller=self)
         frame.pack(side="top", fill="both", expand="true")
         """
         for F in (StartPage, PageOne, PageTwo):
@@ -172,50 +186,48 @@ class SampleApp(tk.Tk):
 
 
 class StartPage(tk.Frame):
-    def __init__(self, parent, controller):
+    def __init__(self, userargs,parent, controller):
         tk.Frame.__init__(self, parent)
         # Variables
-        self.images = ['testData/boris.jpg',
-                       'testData/women.jpg', 'testData/anime.jpg']
+        #self.images = ['testData/boris.jpg', 'testData/women.jpg', 'testData/anime.jpg']
 
         def getSize():
             controller.update()
-            height = controller.winfo_height()
+            height = controller.winfo_height()-50
             width = controller.winfo_width()
             return height, width
 
-        self.configure(bg=bg_color)
-        self.currentPos = 0
+        self.configure(bg=userargs.bg_color)
         self.controller = controller
         counter = CountdownClock(5000)
-        photo = ImageIter('testData/*.jpg')
+        photo = ImageIter(userargs.paths)
         self.end_session_bool = False
 
         # Widgets
         height, width = getSize()
         photo.next()
-        self.img = photo.image(height, width)
+        self.img = photo.image(height, width,userargs.readjust_amount)
 
-        holderFrame = tk.Frame(controller, bg=bg_color, pady=0, padx=0)
-        gridFrame = tk.Frame(holderFrame, bg=bg_color, pady=0, padx=0)
+        holderFrame = tk.Frame(controller, bg=userargs.bg_color, pady=0, padx=0)
+        gridFrame = tk.Frame(holderFrame, bg=userargs.bg_color, pady=0, padx=0)
         panel = tk.Label(holderFrame, text="", image=self.img,
-                         bg=bg_color, fg=fg_color)
+                         bg=userargs.bg_color, fg=userargs.fg_color)
         timer = tk.Label(gridFrame, text=counter.realtime(), font=(
-            global_font, timer_font_size), fg=fg_color, bg=bg_color, padx=30)
+            userargs.global_font, userargs.timer_font_size), fg=userargs.fg_color, bg=userargs.bg_color, padx=30)
         end = tk.Button(gridFrame, text="End", command=lambda: end_session(), font=(
-            global_font), fg=fg_color, bg=bg_color, padx=10, pady=10)
+            userargs.global_font, 10), fg=userargs.fg_color, bg=userargs.bg_color, padx=10, pady=3)
 
         # Packing
         holderFrame.pack(side="top", pady=0)
-        gridFrame.pack(side='top', anchor='n')
+        gridFrame.pack(side='top', pady=10)
         panel.pack(side='bottom')
         timer.grid(row=0, column=1)
-        end.grid(row=0, column=3)
-        if(show_arrows):
+        end.grid(row=0, column=3, padx=20)
+        if(userargs.show_arrows):
             back = tk.Button(gridFrame, text="<", command=lambda: goBack(
-                None), bg=bg_color, fg=fg_color)
+                None), bg=userargs.bg_color, fg=userargs.fg_color)
             forward = tk.Button(gridFrame, text=">", command=lambda: goForward(
-                None), bg=bg_color, fg=fg_color)
+                None), bg=userargs.bg_color, fg=userargs.fg_color)
             back.grid(row=0, column=0)
             forward.grid(row=0, column=2)
 
@@ -223,16 +235,17 @@ class StartPage(tk.Frame):
 
         def end_session():
             self.end_session_bool = True
-            photo._index = len(photo._c)
             mins, secs = divmod(counter._total_time/1000, 60)
             num_items = len(photo._history)
             results = 'Thank you! \n You have completed {0} images in {1}m{2}s'.format(
-                num_items, mins, secs)
+                num_items, int(mins), int(secs))
             panel.configure(image='', text=results,
-                            font=(global_font, 20))
+                            font=(userargs.font, 20))
             panel.update_idletasks()
-            timer['text'] = "Done"
-            # holderFrame.pack_forget()
+            timer['text'] = "   "
+            photo._c = photo._history
+            photo._index = len(photo._c)
+            end.grid_forget()
 
         def update_countdown_label(): timer['text'] = counter.realtime()
 
@@ -252,7 +265,7 @@ class StartPage(tk.Frame):
         def next_image(event=None):
             height, width = getSize()
             if photo.next() != None:
-                new_image = photo.image(height, width)
+                new_image = photo.image(height, width,userargs.readjust_amount)
                 panel.configure(image=new_image)
                 panel.image = new_image
             else:
@@ -262,7 +275,7 @@ class StartPage(tk.Frame):
         def previous_image(event=None):
             height, width = getSize()
             photo.prev()
-            new_image = photo.image(height, width)
+            new_image = photo.image(height, width,userargs.readjust_amount)
             panel.configure(image=new_image)
             panel.image = new_image
 
@@ -279,48 +292,11 @@ class StartPage(tk.Frame):
         controller.bind("<Right>", goForward)
         controller.bind("<Left>", goBack)
         countdown_timer()
-        # controller.after(counter._maxtime,countdown)
-
-        """
-        label = tk.Label(self, text="This is the start page", font=controller.title_font)
-        label.pack(side="top", fill="x", pady=10)
-
-        button1 = tk.Button(self, text="Go to Page One",
-                            command=lambda: controller.show_frame("PageOne"))
-        button2 = tk.Button(self, text="Go to Page Two",
-                            command=lambda: controller.show_frame("PageTwo"))
-        button1.pack()
-        button2.pack()
-        """
-
-
-class PageOne(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        self.controller = controller
-        label = tk.Label(self, text="This is page 1",
-                         font=controller.title_font)
-        label.pack(side="top", fill="x", pady=10)
-        button = tk.Button(self, text="Go to the start page",
-                           command=lambda: controller.show_frame("StartPage"))
-        button.pack()
-
-
-class PageTwo(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        self.controller = controller
-        label = tk.Label(self, text="This is page 2",
-                         font=controller.title_font)
-        label.pack(side="top", fill="x", pady=10)
-        button = tk.Button(self, text="Go to the start page",
-                           command=lambda: controller.show_frame("StartPage"))
-        button.pack()
-
 
 if __name__ == "__main__":
-    app = SampleApp()
-    app['bg'] = bg_color
+    parser = init_argparse()
+    args = parser.parse_args()
+
+    app = SampleApp(userargs=args)
+    app['bg'] = args.bg_color
     app.mainloop()
