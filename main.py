@@ -9,18 +9,32 @@ import argparse
 
 
 def init_argparse():
+    # Important
     parser = argparse.ArgumentParser(description="Iterator through images")
-    parser.add_argument('-p','--paths', type=str, default='.', help="path of images")
+    parser.add_argument('-p', '--paths', type=str,
+                        default='.', help="path of images")
+    parser.add_argument('-t', '--time', type=int,
+                        default='30', help="time in seconds")
     # Aesethetic Arguements
-    parser.add_argument('--bg_color', type=str, default='black', help="background color of app")
-    parser.add_argument('--fg_color', type=str, default='white', help="foreground color of app")
-    parser.add_argument('--global_font', type=str, default='Arial', help="font family of labels")
-    parser.add_argument('--timer_font_size', type=int, default=20, help="size of timer")
-    parser.add_argument('--show_timer', type=bool, default=True, help="show timer")
-    parser.add_argument('--show_arrows', type=bool, default=True, help="show forward and back arrows")
-    parser.add_argument('--allow_back', type=bool, default=True, help="disable the ability to view previous images")
-    parser.add_argument('--disable_skip', type=bool, default=True, help="disable the ability to skip current image")
-    parser.add_argument('--readjust_amount', type=float, default=0.7, help="percent of window size images should be")
+    parser.add_argument('--bg_color', type=str,
+                        default='black', help="background color of app")
+    parser.add_argument('--fg_color', type=str,
+                        default='white', help="foreground color of app")
+    parser.add_argument('--global_font', type=str,
+                        default='Arial', help="font family of labels")
+    parser.add_argument('--timer_font_size', type=int,
+                        default=20, help="size of timer")
+    parser.add_argument('--show_timer', type=bool,
+                        default=True, help="show timer")
+    parser.add_argument('--arrows', dest='show_arrows', action='store_true', help="show forward and back arrows")
+    parser.add_argument('--no_arrows', dest='show_arrows', action='store_false', help="show forward and back arrows")
+    parser.add_argument('--allow_back', type=bool, default=True,
+                        help="disable the ability to view previous images")
+    parser.add_argument('--disable_skip', type=bool, default=True,
+                        help="disable the ability to skip current image")
+    parser.add_argument('--readjust_amount', type=float, default=0.7,
+                        help="percent of window size images should be")
+    parser.set_defaults(show_arrows=True)
     return parser
 
 
@@ -29,26 +43,7 @@ def init_argparse():
 #    "scalar": [5,30,60,120,240] # in seconds
 #    "class": [[(30,5),(60,3),(1,120)]] # (time in seconds, number of images)
 # }
-"""
-bg_color = "black"
-fg_color = "white"
-global_font = 'Arial'
-timer_font_size = 20
-show_timer = True
-show_arrows = True
-disable_skip = False
-disable_skip = False
-readjust_amount=0.7 # How much to shrink large photos
-"""
 # Main clas for project. Run as gui or command line
-
-
-class DesktopReference:
-    def __init__(self, args): pass
-
-    def runApp(self): pass
-    def runCommand(self): pass
-
 
 class ImageIter:
     def __init__(self, path, recursive=False):
@@ -84,7 +79,7 @@ class ImageIter:
     # Resizes image to fit inside window. If image is smaller, then it will not resize
     # olds are the image, news are the window
 
-    def calculate_resize(self, img_h, img_w, win_h, win_w,readjust_amount):
+    def calculate_resize(self, img_h, img_w, win_h, win_w, readjust_amount):
         maxval = max(img_h, img_w, win_h, win_w)
         if img_h == maxval:
             ratio = (win_h / img_h)
@@ -104,10 +99,11 @@ class ImageIter:
             new_w *= readjust_amount
         return (int(new_h), int(new_w))
 
-    def image(self, height, width,readjust_amount):
+    def image(self, height, width, readjust_amount):
         image = Image.open(self.current())
         old_h, old_w = image.size
-        newsize = self.calculate_resize(old_h, old_w, height-200, width,readjust_amount)
+        newsize = self.calculate_resize(
+            old_h, old_w, height-200, width, readjust_amount)
         return ImageTk.PhotoImage(image.resize(newsize, Image.ANTIALIAS))
 
 
@@ -139,7 +135,7 @@ class CountdownClock:
 
 
 class SampleApp(tk.Tk):
-    def __init__(self,userargs, *args, **kwargs):
+    def __init__(self, userargs, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
         self.title_font = tkfont.Font(
@@ -153,10 +149,9 @@ class SampleApp(tk.Tk):
         self.geometry("1000x1000")
         container.pack(side="bottom", fill="both", expand=True, padx=0, pady=0)
 
-
         start_button = tk.Button()
         page_name = StartPage.__name__
-        frame = StartPage(userargs=userargs,parent=container, controller=self)
+        frame = StartPage(userargs=userargs, parent=container, controller=self)
         frame.pack(side="top", fill="both", expand="true")
         """
         for F in (StartPage, PageOne, PageTwo):
@@ -186,10 +181,11 @@ class SampleApp(tk.Tk):
 
 
 class StartPage(tk.Frame):
-    def __init__(self, userargs,parent, controller):
+    def __init__(self, userargs, parent, controller):
         tk.Frame.__init__(self, parent)
         # Variables
         #self.images = ['testData/boris.jpg', 'testData/women.jpg', 'testData/anime.jpg']
+        print("arrows",userargs)
 
         def getSize():
             controller.update()
@@ -199,23 +195,25 @@ class StartPage(tk.Frame):
 
         self.configure(bg=userargs.bg_color)
         self.controller = controller
-        counter = CountdownClock(5000)
+        counter = CountdownClock(userargs.time*1000)
         photo = ImageIter(userargs.paths)
         self.end_session_bool = False
 
         # Widgets
-        height, width = getSize()
-        photo.next()
-        self.img = photo.image(height, width,userargs.readjust_amount)
 
-        holderFrame = tk.Frame(controller, bg=userargs.bg_color, pady=0, padx=0)
+        holderFrame = tk.Frame(
+            controller, bg=userargs.bg_color, pady=0, padx=0)
         gridFrame = tk.Frame(holderFrame, bg=userargs.bg_color, pady=0, padx=0)
-        panel = tk.Label(holderFrame, text="", image=self.img,
-                         bg=userargs.bg_color, fg=userargs.fg_color)
         timer = tk.Label(gridFrame, text=counter.realtime(), font=(
             userargs.global_font, userargs.timer_font_size), fg=userargs.fg_color, bg=userargs.bg_color, padx=30)
         end = tk.Button(gridFrame, text="End", command=lambda: end_session(), font=(
             userargs.global_font, 10), fg=userargs.fg_color, bg=userargs.bg_color, padx=10, pady=3)
+
+        height, width = getSize()
+        photo.next()
+        self.img = photo.image(height, width, userargs.readjust_amount)
+        panel = tk.Label(holderFrame, text="", image=self.img,
+                         bg=userargs.bg_color, fg=userargs.fg_color)
 
         # Packing
         holderFrame.pack(side="top", pady=0)
@@ -223,15 +221,14 @@ class StartPage(tk.Frame):
         panel.pack(side='bottom')
         timer.grid(row=0, column=1)
         end.grid(row=0, column=3, padx=20)
+
         if(userargs.show_arrows):
             back = tk.Button(gridFrame, text="<", command=lambda: goBack(
                 None), bg=userargs.bg_color, fg=userargs.fg_color)
             forward = tk.Button(gridFrame, text=">", command=lambda: goForward(
                 None), bg=userargs.bg_color, fg=userargs.fg_color)
-            back.grid(row=0, column=0)
+            #back.grid(row=0, column=0)
             forward.grid(row=0, column=2)
-
-        def showGallery(): pass
 
         def end_session():
             self.end_session_bool = True
@@ -240,8 +237,7 @@ class StartPage(tk.Frame):
             results = 'Thank you! \n You have completed {0} images in {1}m{2}s'.format(
                 num_items, int(mins), int(secs))
             panel.configure(image='', text=results,
-                            font=(userargs.font, 20))
-            panel.update_idletasks()
+                            font=(userargs.global_font, 20))
             timer['text'] = "   "
             photo._c = photo._history
             photo._index = len(photo._c)
@@ -265,19 +261,30 @@ class StartPage(tk.Frame):
         def next_image(event=None):
             height, width = getSize()
             if photo.next() != None:
-                new_image = photo.image(height, width,userargs.readjust_amount)
+                new_image = photo.image(
+                    height, width, userargs.readjust_amount)
                 panel.configure(image=new_image)
                 panel.image = new_image
             else:
                 self.end_session_bool = True
                 end_session()
+                forward.grid_forget()
+            if userargs.show_arrows and photo._index > 0:
+                back.grid(row=0, column=0)
 
         def previous_image(event=None):
             height, width = getSize()
             photo.prev()
-            new_image = photo.image(height, width,userargs.readjust_amount)
+            new_image = photo.image(height, width, userargs.readjust_amount)
             panel.configure(image=new_image)
             panel.image = new_image
+            # Display arrows
+            if not userargs.show_arrows:
+                return
+            if photo._index == 0:
+                back.grid_forget()
+            else:
+                forward.grid(row=0, column=2)
 
         # Callbacks
         def goForward(event):
@@ -292,6 +299,7 @@ class StartPage(tk.Frame):
         controller.bind("<Right>", goForward)
         controller.bind("<Left>", goBack)
         countdown_timer()
+
 
 if __name__ == "__main__":
     parser = init_argparse()
