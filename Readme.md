@@ -17,6 +17,12 @@ https://quickposes.com/en
 
 https://line-of-action.com/
 
+# Example
+
+Cycles through pictures in a directory at a 60 second time interval.
+
+python tweede.py -p ~/Pictures/art_references -t 60
+
 # TODO
 
 	Add pause button
