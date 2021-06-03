@@ -1,11 +1,12 @@
-import tkinter as tk
-from tkinter import font as tkfont
-from PIL import ImageTk, Image
-from itertools import cycle
-import random
-import glob
-from datetime import datetime
 import argparse
+import glob
+import random
+import tkinter as tk
+from datetime import datetime
+from itertools import cycle
+from tkinter import font as tkfont
+
+from PIL import Image, ImageTk
 
 
 def init_argparse():
