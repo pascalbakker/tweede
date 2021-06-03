@@ -207,14 +207,12 @@ class StartPage(tk.Frame):
         gridFrame = tk.Frame(holderFrame, bg=userargs.bg_color, pady=0, padx=0)
         timer = tk.Label(gridFrame, text=counter.realtime(), font=(
             userargs.global_font, userargs.timer_font_size), fg=userargs.fg_color, bg=userargs.bg_color, padx=30)
-        pause = tk.Button(gridFrame, text="End", command=lambda: end_session(), font=(
+        pause = tk.Button(gridFrame, text="End", command=end_session, font=(
             userargs.global_font, 10), fg=userargs.fg_color, bg=userargs.bg_color, padx=10, pady=3)
-        end = tk.Button(gridFrame, text="End", command=lambda: end_session(), font=(
+        end = tk.Button(gridFrame, text="End", command=end_session, font=(
             userargs.global_font, 10), fg=userargs.fg_color, bg=userargs.bg_color, padx=10, pady=3)
-        back = tk.Button(gridFrame, text="<", command=lambda: goBack(
-            None), bg=userargs.bg_color, fg=userargs.fg_color)
-        forward = tk.Button(gridFrame, text=">", command=lambda: goForward(
-            None), bg=userargs.bg_color, fg=userargs.fg_color)
+        back = tk.Button(gridFrame, text="<", command=goBack, bg=userargs.bg_color, fg=userargs.fg_color)
+        forward = tk.Button(gridFrame, text=">", command=goForward, bg=userargs.bg_color, fg=userargs.fg_color)
         # Image widget
         height, width = self.getSize()
         photo.next()
