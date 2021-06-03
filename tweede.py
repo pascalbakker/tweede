@@ -74,6 +74,7 @@ class ImageIter:
             self._index = 0
             #self._index = len(self._c)-1
         return self._c[self._index]
+    
     def nextImage(self): pass
     def current(self): return self._c[self._index]
     def reshuffle(self): random.shuffle(self._c)
@@ -81,7 +82,8 @@ class ImageIter:
 
     # Resizes image to fit inside window. If image is smaller, then it will not resize
     # olds are the image, news are the window
-    def calculate_resize(self, img_h, img_w, win_h, win_w, readjust_amount):
+    @staticmethod
+    def calculate_resize(img_h, img_w, win_h, win_w, readjust_amount):
         new_h = max(win_h*readjust_amount,0)
         new_w = max(win_w*readjust_amount,0)
         ratio = min(new_w/img_w,new_h/img_h)
