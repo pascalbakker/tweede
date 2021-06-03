@@ -7,7 +7,7 @@ Creator: Pascal Bakker
 
 ![Screenshot](screenshot.png)
 
-Tweede [(1)](https://forvo.com/word/tweede/#nl) is a lightweeight desktop application for artists to warm up. Execute tweede from your reference folder and it will rotate through every image at given time interval.
+Tweede [(1)](https://forvo.com/word/tweede/#nl) is a lightweight desktop application for artists to warm up. Execute tweede from your reference folder and it will rotate through every image at given time interval.
 
 Similar websites for context:
 
