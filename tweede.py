@@ -262,7 +262,7 @@ class StartPage(tk.Frame):
         # Functions
         def next_image(event=None):
             height, width = self.getSize()
-            if photo.next() != None:
+            if photo.next() is not None:
                 new_image = photo.image(
                     height, width, userargs.readjust_amount)
                 panel.configure(image=new_image)
