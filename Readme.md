@@ -21,7 +21,7 @@ https://line-of-action.com/
 
 Cycles through pictures in a directory at a 60 second time interval.
 
-python tweede.py -p ~/Pictures/art_references -t 60
+    python tweede.py -p ~/Pictures/art_references -t 60
 
 # TODO
 
